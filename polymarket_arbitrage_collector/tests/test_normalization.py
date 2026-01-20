@@ -52,6 +52,16 @@ def test_extract_token_ids() -> None:
     assert tokens["down"] == "down456"
 
 
+def test_extract_token_ids_from_clob_list() -> None:
+    market = {
+        "clobTokenIds": "[\"token_up\", \"token_down\"]",
+        "outcomes": "[\"Up\", \"Down\"]",
+    }
+    tokens = _extract_token_ids(market)
+    assert tokens["up"] == "token_up"
+    assert tokens["down"] == "token_down"
+
+
 def test_slug_from_market_url() -> None:
     url = "https://polymarket.com/event/btc-updown-15m-1768907700"
     assert slug_from_market_url(url) == "btc-updown-15m-1768907700"

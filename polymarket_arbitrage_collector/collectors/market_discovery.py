@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -21,6 +22,19 @@ class TokenResolution:
     raw: Dict[str, Any]
 
 
+def _parse_json_list(value: Any) -> List[Any]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return parsed
+        except json.JSONDecodeError:
+            return []
+    return []
+
+
 def _extract_token_ids(market: Dict[str, Any]) -> Dict[str, Optional[str]]:
     up_token = None
     down_token = None
@@ -36,11 +50,25 @@ def _extract_token_ids(market: Dict[str, Any]) -> Dict[str, Optional[str]]:
             up_token = str(token_id)
         elif outcome in ("no", "down", "false"):
             down_token = str(token_id)
+    if up_token or down_token:
+        return {"up": up_token, "down": down_token}
+    clob_token_ids = _parse_json_list(market.get("clobTokenIds"))
+    outcomes = _parse_json_list(market.get("outcomes"))
+    if clob_token_ids and outcomes and len(clob_token_ids) == len(outcomes):
+        for token_id, outcome in zip(clob_token_ids, outcomes):
+            outcome_name = str(outcome).lower()
+            if outcome_name in ("up", "yes", "true"):
+                up_token = str(token_id)
+            elif outcome_name in ("down", "no", "false"):
+                down_token = str(token_id)
     return {"up": up_token, "down": down_token}
 
 
 def _extract_market_payload(payload: Any) -> Dict[str, Any]:
     if isinstance(payload, dict):
+        value = payload.get("value")
+        if isinstance(value, list) and value:
+            return value[0]
         data = payload.get("data")
         if isinstance(data, list) and data:
             return data[0]
