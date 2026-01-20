@@ -18,19 +18,35 @@ pip install -r requirements.txt
 Collect periodic snapshots for an Up/Down pair and store them in the backtest-compatible
 format (`timestamp`, `up`, `down`).
 
-```bash
-python -m polymarket_arbitrage_collector.cli.collect \
-  --mode rest \
-  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 \
-  --out data/ \
-  --snapshot-every 1.0 \
-  --depth 5 \
+```powershell
+python -m polymarket_arbitrage_collector.cli.collect `
+  --mode rest `
+  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 `
+  --out data/ `
+  --snapshot-every 1.0 `
+  --depth 5 `
   --seconds 3600
 ```
 
 > 说明：请在仓库根目录（包含 `polymarket_arbitrage_collector/` 的那一层）执行上述命令。
 > 如果你已经 `cd polymarket_arbitrage_collector/`，请先设置：
 > `PYTHONPATH=..` 再运行。
+
+## Discover token IDs (no URL needed)
+
+Use the default slug (`btc-updown-15m-1768907700`) or pass `--market-slug` /
+`--condition-id` to resolve token IDs without copying the event URL.
+
+```powershell
+python -m polymarket_arbitrage_collector.cli.collect `
+  --mode discover
+```
+
+```powershell
+python -m polymarket_arbitrage_collector.cli.collect `
+  --mode discover `
+  --market-slug btc-updown-15m-1768907700
+```
 
 Output files:
 
@@ -43,12 +59,12 @@ out_dir/
 
 Collect raw WebSocket messages and (optionally) periodic combined snapshots.
 
-```bash
-python -m polymarket_arbitrage_collector.cli.collect \
-  --mode ws \
-  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 \
-  --out data/ \
-  --snapshot-every 1.0 \
+```powershell
+python -m polymarket_arbitrage_collector.cli.collect `
+  --mode ws `
+  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 `
+  --out data/ `
+  --snapshot-every 1.0 `
   --depth 5
 ```
 
@@ -68,13 +84,13 @@ If you only know a market slug or condition ID, you can resolve token IDs via Ga
 download price history by time range. Note: this endpoint returns historical prices, not
 full order book snapshots, so it is stored under `history/`.
 
-```bash
-python -m polymarket_arbitrage_collector.cli.collect \
-  --mode history \
-  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 \
-  --start-ts 1710000000 \
-  --end-ts 1710086400 \
-  --fidelity-minutes 1 \
+```powershell
+python -m polymarket_arbitrage_collector.cli.collect `
+  --mode history `
+  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 `
+  --start-ts 1710000000 `
+  --end-ts 1710086400 `
+  --fidelity-minutes 1 `
   --out data/
 ```
 

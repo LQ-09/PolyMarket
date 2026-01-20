@@ -76,7 +76,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--condition-id", help="Gamma condition ID for token discovery")
     parser.add_argument("--market-url", help="Polymarket event URL for token discovery")
     parser.add_argument("--out", required=True, help="Output directory")
-    parser.add_argument("--mode", choices=["rest", "ws", "history"], required=True)
+    parser.add_argument(
+        "--mode",
+        choices=["rest", "ws", "history", "discover"],
+        required=True,
+    )
     parser.add_argument("--seconds", type=float, default=0.0)
     parser.add_argument("--snapshot-every", type=float, default=1.0)
     parser.add_argument("--ping-interval", type=float, default=5.0)
@@ -217,12 +221,28 @@ def _run_history(args: argparse.Namespace) -> None:
         writer.write(payload)
 
 
+def _run_discover(args: argparse.Namespace) -> None:
+    if args.market_url:
+        slug = slug_from_market_url(args.market_url)
+        resolution = resolve_token_ids(market_slug=slug)
+    else:
+        resolution = resolve_token_ids(
+            market_slug=args.market_slug,
+            condition_id=args.condition_id,
+        )
+    print("Resolved token IDs")
+    print(f"Up: {resolution.up_token_id}")
+    print(f"Down: {resolution.down_token_id}")
+
+
 def main() -> None:
     args = parse_args()
     if args.mode == "rest":
         _run_rest(args)
     elif args.mode == "ws":
         _run_ws(args)
+    elif args.mode == "discover":
+        _run_discover(args)
     else:
         _run_history(args)
 

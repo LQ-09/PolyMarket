@@ -63,6 +63,31 @@ def slug_from_market_url(url: str) -> str:
     return parts[-1]
 
 
+def _fetch_market_by_slug(slug: str, timeout: float) -> Dict[str, Any]:
+    response = requests.get(
+        f"{GAMMA_BASE_URL}/markets",
+        params={"slug": slug},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    market = _extract_market_payload(response.json())
+    if market:
+        return market
+    response = requests.get(f"{GAMMA_BASE_URL}/markets/{slug}", timeout=timeout)
+    response.raise_for_status()
+    return _extract_market_payload(response.json())
+
+
+def _fetch_market_by_condition(condition_id: str, timeout: float) -> Dict[str, Any]:
+    response = requests.get(
+        f"{GAMMA_BASE_URL}/markets",
+        params={"conditionId": condition_id},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    return _extract_market_payload(response.json())
+
+
 @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(5))
 def resolve_token_ids(
     *,
@@ -74,15 +99,11 @@ def resolve_token_ids(
 
     if not market_slug and not condition_id:
         raise ValueError("market_slug or condition_id is required")
-    params: Dict[str, str] = {}
+    market: Dict[str, Any] = {}
     if market_slug:
-        params["slug"] = market_slug
-    if condition_id:
-        params["conditionId"] = condition_id
-    response = requests.get(f"{GAMMA_BASE_URL}/markets", params=params, timeout=timeout)
-    response.raise_for_status()
-    payload = response.json()
-    market = _extract_market_payload(payload)
+        market = _fetch_market_by_slug(market_slug, timeout)
+    elif condition_id:
+        market = _fetch_market_by_condition(condition_id, timeout)
     tokens = _extract_token_ids(market)
     all_tokens = [
         token_id
