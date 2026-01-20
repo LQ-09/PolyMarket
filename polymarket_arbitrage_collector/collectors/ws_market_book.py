@@ -30,6 +30,20 @@ def _parse_levels(levels: List[Any]) -> List[List[float]]:
     return normalized
 
 
+def _trim_levels(
+    levels: List[List[float]],
+    side: str,
+    depth: Optional[int],
+) -> List[List[float]]:
+    if depth is None:
+        return levels
+    if side == "bids":
+        sorted_levels = sorted(levels, key=lambda x: x[0], reverse=True)
+    else:
+        sorted_levels = sorted(levels, key=lambda x: x[0])
+    return sorted_levels[:depth]
+
+
 def _utc_date_string(timestamp: Optional[float] = None) -> str:
     if timestamp is None:
         timestamp = time.time()
@@ -53,12 +67,14 @@ class MarketWSCollector:
         token_ids: List[str],
         out_dir: str,
         snapshot_every: Optional[float],
+        depth: Optional[int] = None,
         ping_interval: float = 5.0,
         side_map: Optional[Dict[str, str]] = None,
     ) -> None:
         self.token_ids = token_ids
         self.out_dir = out_dir
         self.snapshot_every = snapshot_every
+        self.depth = depth
         self.ping_interval = ping_interval
         self.side_map = side_map or {}
         self._ws: Optional[WebSocketApp] = None
@@ -195,8 +211,14 @@ class MarketWSCollector:
             return None
         return {
             "timestamp": timestamp,
-            "up": {"bids": up_state.bids, "asks": up_state.asks},
-            "down": {"bids": down_state.bids, "asks": down_state.asks},
+            "up": {
+                "bids": _trim_levels(up_state.bids, "bids", self.depth),
+                "asks": _trim_levels(up_state.asks, "asks", self.depth),
+            },
+            "down": {
+                "bids": _trim_levels(down_state.bids, "bids", self.depth),
+                "asks": _trim_levels(down_state.asks, "asks", self.depth),
+            },
             "token_id": f"{up_token}_{down_token}",
         }
 

@@ -21,10 +21,10 @@ format (`timestamp`, `up`, `down`).
 ```bash
 python -m polymarket_arbitrage_collector.cli.collect \
   --mode rest \
-  --up-token-id <UP_TOKEN_ID> \
-  --down-token-id <DOWN_TOKEN_ID> \
+  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 \
   --out data/ \
   --snapshot-every 1.0 \
+  --depth 5 \
   --seconds 3600
 ```
 
@@ -46,11 +46,10 @@ Collect raw WebSocket messages and (optionally) periodic combined snapshots.
 ```bash
 python -m polymarket_arbitrage_collector.cli.collect \
   --mode ws \
-  --token-ids <UP_TOKEN_ID>,<DOWN_TOKEN_ID> \
-  --up-token-id <UP_TOKEN_ID> \
-  --down-token-id <DOWN_TOKEN_ID> \
+  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 \
   --out data/ \
-  --snapshot-every 1.0
+  --snapshot-every 1.0 \
+  --depth 5
 ```
 
 > 同上：建议在仓库根目录执行，或设置 `PYTHONPATH=..`。
@@ -61,6 +60,32 @@ Output files:
 out_dir/
   raw_ws/YYYY-MM-DD/ws_<TOKEN_ID>.jsonl
   snapshots/YYYY-MM-DD/snapshots_<UP>_<DOWN>.jsonl
+```
+
+## Historical price collection (Gamma token discovery + price history)
+
+If you only know a market slug or condition ID, you can resolve token IDs via Gamma and
+download price history by time range. Note: this endpoint returns historical prices, not
+full order book snapshots, so it is stored under `history/`.
+
+```bash
+python -m polymarket_arbitrage_collector.cli.collect \
+  --mode history \
+  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 \
+  --start-ts 1710000000 \
+  --end-ts 1710086400 \
+  --fidelity-minutes 1 \
+  --out data/
+```
+
+> 说明：`--market-slug` 默认使用 `btc-updown-15m-1768907700`，也可以传入 `--market-url`
+> 或 `--condition-id` 覆盖。
+
+Output files:
+
+```
+out_dir/
+  history/YYYY-MM-DD/history_<TOKEN_ID>.jsonl
 ```
 
 ## Stored snapshot schema (backtest-compatible)

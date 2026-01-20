@@ -27,6 +27,12 @@ def build_snapshot_path(out_dir: str, token_id: str, date_str: str) -> Path:
     return base / f"snapshots_{token_id}.jsonl"
 
 
+def build_history_path(out_dir: str, token_id: str, date_str: str) -> Path:
+    base = Path(out_dir) / "history" / _date_folder(date_str)
+    base.mkdir(parents=True, exist_ok=True)
+    return base / f"history_{token_id}.jsonl"
+
+
 @dataclass
 class JSONLWriter:
     path: Path
