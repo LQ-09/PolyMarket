@@ -10,6 +10,9 @@ format compatible with the existing backtester data reader.
 pip install -r requirements.txt
 ```
 
+> ⚠️ 运行前请确保安装依赖（`tenacity`, `requests`, `websocket-client` 等），否则会报
+> `ModuleNotFoundError: No module named 'tenacity'` 之类错误。
+
 ## REST snapshot collection
 
 Collect periodic snapshots for an Up/Down pair and store them in the backtest-compatible
@@ -24,6 +27,10 @@ python -m polymarket_arbitrage_collector.cli.collect \
   --snapshot-every 1.0 \
   --seconds 3600
 ```
+
+> 说明：请在仓库根目录（包含 `polymarket_arbitrage_collector/` 的那一层）执行上述命令。
+> 如果你已经 `cd polymarket_arbitrage_collector/`，请先设置：
+> `PYTHONPATH=..` 再运行。
 
 Output files:
 
@@ -45,6 +52,8 @@ python -m polymarket_arbitrage_collector.cli.collect \
   --out data/ \
   --snapshot-every 1.0
 ```
+
+> 同上：建议在仓库根目录执行，或设置 `PYTHONPATH=..`。
 
 Output files:
 
