@@ -48,6 +48,9 @@ python -m polymarket_arbitrage_collector.cli.collect `
   --market-slug btc-updown-15m-1768907700
 ```
 
+> 输出目录默认是 `data/`，并自动按类型区分为：
+> `data/snapshots/`（REST/WS 快照）、`data/raw_ws/`（WS 原始消息）、`data/history/`（历史价格）。
+
 Output files:
 
 ```

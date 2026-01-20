@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--condition-id", help="Gamma condition ID for token discovery")
     parser.add_argument("--market-url", help="Polymarket event URL for token discovery")
-    parser.add_argument("--out", required=True, help="Output directory")
+    parser.add_argument("--out", default="data", help="Output directory")
     parser.add_argument(
         "--mode",
         choices=["rest", "ws", "history", "discover"],
@@ -237,6 +237,8 @@ def _run_discover(args: argparse.Namespace) -> None:
 
 def main() -> None:
     args = parse_args()
+    if args.mode != "discover" and not args.out:
+        raise ValueError("--out is required for rest/ws/history modes")
     if args.mode == "rest":
         _run_rest(args)
     elif args.mode == "ws":
