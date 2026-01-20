@@ -32,6 +32,22 @@ python -m polymarket_arbitrage_collector.cli.collect `
 > 如果你已经 `cd polymarket_arbitrage_collector/`，请先设置：
 > `PYTHONPATH=..` 再运行。
 
+## Discover token IDs (no URL needed)
+
+Use the default slug (`btc-updown-15m-1768907700`) or pass `--market-slug` /
+`--condition-id` to resolve token IDs without copying the event URL.
+
+```powershell
+python -m polymarket_arbitrage_collector.cli.collect `
+  --mode discover
+```
+
+```powershell
+python -m polymarket_arbitrage_collector.cli.collect `
+  --mode discover `
+  --market-slug btc-updown-15m-1768907700
+```
+
 Output files:
 
 ```
