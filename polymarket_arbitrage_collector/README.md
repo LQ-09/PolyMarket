@@ -21,7 +21,7 @@ format (`timestamp`, `up`, `down`).
 ```powershell
 python -m polymarket_arbitrage_collector.cli.collect `
   --mode rest `
-  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 `
+  --series-slug btc-up-or-down-15m `
   --out data/ `
   --snapshot-every 1.0 `
   --depth 5 `
@@ -34,7 +34,7 @@ python -m polymarket_arbitrage_collector.cli.collect `
 
 ## Discover token IDs (no URL needed)
 
-Use the default slug (`btc-updown-15m-1768907700`) or pass `--market-slug` /
+Use the default series slug (`btc-up-or-down-15m`) or pass `--market-slug` /
 `--condition-id` to resolve token IDs without copying the event URL.
 
 ```powershell
@@ -45,17 +45,17 @@ python -m polymarket_arbitrage_collector.cli.collect `
 ```powershell
 python -m polymarket_arbitrage_collector.cli.collect `
   --mode discover `
-  --market-slug btc-updown-15m-1768907700
+  --series-slug btc-up-or-down-15m
 ```
 
 > 输出目录默认是 `data/`，并自动按类型区分为：
-> `data/snapshots/`（REST/WS 快照）、`data/raw_ws/`（WS 原始消息）、`data/history/`（历史价格）。
+> `data/snapshots/<series>/<market>/`（REST/WS 快照）、`data/raw_ws/<series>/<market>/`（WS 原始消息）、`data/history/<series>/<market>/`（历史价格）。
 
 Output files:
 
 ```
 out_dir/
-  snapshots/YYYY-MM-DD/snapshots_<UP>_<DOWN>.jsonl
+  snapshots/<series>/<market>/YYYY-MM-DD/snapshots_<UP>_<DOWN>.jsonl
 ```
 
 ## WebSocket collection
@@ -65,7 +65,7 @@ Collect raw WebSocket messages and (optionally) periodic combined snapshots.
 ```powershell
 python -m polymarket_arbitrage_collector.cli.collect `
   --mode ws `
-  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 `
+  --series-slug btc-up-or-down-15m `
   --out data/ `
   --snapshot-every 1.0 `
   --depth 5
@@ -77,8 +77,8 @@ Output files:
 
 ```
 out_dir/
-  raw_ws/YYYY-MM-DD/ws_<TOKEN_ID>.jsonl
-  snapshots/YYYY-MM-DD/snapshots_<UP>_<DOWN>.jsonl
+  raw_ws/<series>/<market>/YYYY-MM-DD/ws_<TOKEN_ID>.jsonl
+  snapshots/<series>/<market>/YYYY-MM-DD/snapshots_<UP>_<DOWN>.jsonl
 ```
 
 ## Historical price collection (Gamma token discovery + price history)
@@ -90,21 +90,34 @@ full order book snapshots, so it is stored under `history/`.
 ```powershell
 python -m polymarket_arbitrage_collector.cli.collect `
   --mode history `
-  --market-url https://polymarket.com/event/btc-updown-15m-1768907700 `
-  --start-ts 1710000000 `
-  --end-ts 1710086400 `
+  --series-slug btc-up-or-down-15m `
+  --auto-window-minutes 15 `
   --fidelity-minutes 1 `
   --out data/
 ```
 
-> 说明：`--market-slug` 默认使用 `btc-updown-15m-1768907700`，也可以传入 `--market-url`
+> 说明：`--series-slug` 默认使用 `btc-up-or-down-15m`，也可以传入 `--market-url`
 > 或 `--condition-id` 覆盖。
+
+## History batch (daily 15m markets)
+
+Download all 15-minute markets for a given date (e.g. 96 markets for a full day).
+
+```powershell
+python -m polymarket_arbitrage_collector.cli.collect `
+  --mode history-batch `
+  --series-slug btc-up-or-down-15m `
+  --history-date 2026-01-21 `
+  --auto-window-minutes 15 `
+  --fidelity-minutes 1 `
+  --out data/
+```
 
 Output files:
 
 ```
 out_dir/
-  history/YYYY-MM-DD/history_<TOKEN_ID>.jsonl
+  history/<series>/<market>/YYYY-MM-DD/history_<TOKEN_ID>.jsonl
 ```
 
 ## Stored snapshot schema (backtest-compatible)

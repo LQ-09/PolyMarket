@@ -15,20 +15,40 @@ def _date_folder(date_str: str) -> str:
     return date_str
 
 
-def build_raw_ws_path(out_dir: str, token_id: str, date_str: str) -> Path:
-    base = Path(out_dir) / "raw_ws" / _date_folder(date_str)
+def build_raw_ws_path(
+    out_dir: str,
+    token_id: str,
+    date_str: str,
+    series_slug: str = "unknown-series",
+    market_slug: str = "unknown-market",
+) -> Path:
+    base = Path(out_dir) / "raw_ws" / series_slug / market_slug / _date_folder(date_str)
     base.mkdir(parents=True, exist_ok=True)
     return base / f"ws_{token_id}.jsonl"
 
 
-def build_snapshot_path(out_dir: str, token_id: str, date_str: str) -> Path:
-    base = Path(out_dir) / "snapshots" / _date_folder(date_str)
+def build_snapshot_path(
+    out_dir: str,
+    token_id: str,
+    date_str: str,
+    series_slug: str = "unknown-series",
+    market_slug: str = "unknown-market",
+) -> Path:
+    base = (
+        Path(out_dir) / "snapshots" / series_slug / market_slug / _date_folder(date_str)
+    )
     base.mkdir(parents=True, exist_ok=True)
     return base / f"snapshots_{token_id}.jsonl"
 
 
-def build_history_path(out_dir: str, token_id: str, date_str: str) -> Path:
-    base = Path(out_dir) / "history" / _date_folder(date_str)
+def build_history_path(
+    out_dir: str,
+    token_id: str,
+    date_str: str,
+    series_slug: str = "unknown-series",
+    market_slug: str = "unknown-market",
+) -> Path:
+    base = Path(out_dir) / "history" / series_slug / market_slug / _date_folder(date_str)
     base.mkdir(parents=True, exist_ok=True)
     return base / f"history_{token_id}.jsonl"
 

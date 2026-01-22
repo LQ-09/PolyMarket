@@ -70,6 +70,8 @@ class MarketWSCollector:
         depth: Optional[int] = None,
         ping_interval: float = 5.0,
         side_map: Optional[Dict[str, str]] = None,
+        series_slug: str = "unknown-series",
+        market_slug: str = "unknown-market",
     ) -> None:
         self.token_ids = token_ids
         self.out_dir = out_dir
@@ -77,6 +79,8 @@ class MarketWSCollector:
         self.depth = depth
         self.ping_interval = ping_interval
         self.side_map = side_map or {}
+        self.series_slug = series_slug
+        self.market_slug = market_slug
         self._ws: Optional[WebSocketApp] = None
         self._stop_event = threading.Event()
         self._book_state: Dict[str, BookState] = {}
@@ -174,7 +178,13 @@ class MarketWSCollector:
     def _write_raw_message(self, token_id: str, payload: Dict[str, Any]) -> None:
         writer = self._raw_writers.get(token_id)
         if writer is None:
-            path = build_raw_ws_path(self.out_dir, token_id, _utc_date_string())
+            path = build_raw_ws_path(
+                self.out_dir,
+                token_id,
+                _utc_date_string(),
+                series_slug=self.series_slug,
+                market_slug=self.market_slug,
+            )
             writer = JSONLWriter(path)
             self._raw_writers[token_id] = writer
         writer.write(payload)
@@ -193,7 +203,13 @@ class MarketWSCollector:
         token_key = snapshot["token_id"]
         writer = self._snapshot_writers.get(token_key)
         if writer is None:
-            path = build_snapshot_path(self.out_dir, token_key, _utc_date_string(now))
+            path = build_snapshot_path(
+                self.out_dir,
+                token_key,
+                _utc_date_string(now),
+                series_slug=self.series_slug,
+                market_slug=self.market_slug,
+            )
             writer = JSONLWriter(path)
             self._snapshot_writers[token_key] = writer
         writer.write(snapshot)

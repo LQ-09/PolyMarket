@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
@@ -12,6 +13,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 GAMMA_BASE_URL = "https://gamma-api.polymarket.com"
 DEFAULT_MARKET_SLUG = "btc-updown-15m-1768907700"
+DEFAULT_SERIES_SLUG = "btc-up-or-down-15m"
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,30 @@ def _extract_market_payload(payload: Any) -> Dict[str, Any]:
     return {}
 
 
+def _extract_markets_list(payload: Any) -> List[Dict[str, Any]]:
+    if isinstance(payload, dict):
+        value = payload.get("value")
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+        data = payload.get("data")
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    return []
+
+
+def _parse_iso_to_epoch(value: Optional[str]) -> Optional[float]:
+    if not value:
+        return None
+    try:
+        if value.endswith("Z"):
+            value = value.replace("Z", "+00:00")
+        return datetime.fromisoformat(value).replace(tzinfo=timezone.utc).timestamp()
+    except ValueError:
+        return None
+
+
 def slug_from_market_url(url: str) -> str:
     """Extract a market slug from a Polymarket event URL."""
 
@@ -116,6 +142,16 @@ def _fetch_market_by_condition(condition_id: str, timeout: float) -> Dict[str, A
     return _extract_market_payload(response.json())
 
 
+def _fetch_markets_by_series(series_slug: str, timeout: float) -> List[Dict[str, Any]]:
+    response = requests.get(
+        f"{GAMMA_BASE_URL}/markets",
+        params={"seriesSlug": series_slug},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    return _extract_markets_list(response.json())
+
+
 @retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(5))
 def resolve_token_ids(
     *,
@@ -144,3 +180,60 @@ def resolve_token_ids(
         all_token_ids=all_tokens,
         raw=market,
     )
+
+
+@retry(wait=wait_exponential(multiplier=1, min=1, max=10), stop=stop_after_attempt(5))
+def resolve_latest_series_market(
+    *,
+    series_slug: str,
+    timeout: float = 10.0,
+) -> TokenResolution:
+    markets = _fetch_markets_by_series(series_slug, timeout)
+    if not markets:
+        return TokenResolution(None, None, [], {})
+    def _score(market: Dict[str, Any]) -> Tuple[int, float]:
+        active = int(bool(market.get("active") or market.get("acceptingOrders")))
+        start_ts = _parse_iso_to_epoch(market.get("startDate")) or 0.0
+        return (active, start_ts)
+
+    selected = sorted(markets, key=_score, reverse=True)[0]
+    tokens = _extract_token_ids(selected)
+    all_tokens = [
+        token_id for token_id in (tokens["up"], tokens["down"]) if token_id is not None
+    ]
+    return TokenResolution(
+        up_token_id=tokens["up"],
+        down_token_id=tokens["down"],
+        all_token_ids=all_tokens,
+        raw=selected,
+    )
+
+
+def resolve_market_window_seconds(
+    market: Dict[str, Any],
+    fallback_minutes: int = 15,
+) -> Tuple[Optional[float], Optional[float]]:
+    start_ts = _parse_iso_to_epoch(market.get("startDate"))
+    end_ts = _parse_iso_to_epoch(market.get("endDate"))
+    if start_ts and end_ts:
+        return start_ts, end_ts
+    event_start = _parse_iso_to_epoch(market.get("eventStartTime"))
+    if event_start:
+        return event_start, event_start + fallback_minutes * 60
+    return None, None
+
+
+def list_series_markets(
+    *,
+    series_slug: str,
+    date_iso: Optional[str] = None,
+    timeout: float = 10.0,
+) -> List[Dict[str, Any]]:
+    markets = _fetch_markets_by_series(series_slug, timeout)
+    if not date_iso:
+        return markets
+    return [
+        market
+        for market in markets
+        if market.get("startDateIso") == date_iso or market.get("endDateIso") == date_iso
+    ]

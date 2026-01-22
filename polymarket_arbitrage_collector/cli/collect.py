@@ -5,14 +5,18 @@ from __future__ import annotations
 import argparse
 import signal
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from loguru import logger
 import requests
 
 from ..collectors.market_discovery import (
     DEFAULT_MARKET_SLUG,
+    DEFAULT_SERIES_SLUG,
+    list_series_markets,
     resolve_token_ids,
+    resolve_latest_series_market,
+    resolve_market_window_seconds,
     slug_from_market_url,
 )
 from ..collectors.rest_book_snapshot import fetch_book_snapshot
@@ -75,18 +79,33 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--condition-id", help="Gamma condition ID for token discovery")
     parser.add_argument("--market-url", help="Polymarket event URL for token discovery")
+    parser.add_argument(
+        "--series-slug",
+        default=DEFAULT_SERIES_SLUG,
+        help="Gamma series slug for auto-latest market discovery",
+    )
     parser.add_argument("--out", default="data", help="Output directory")
     parser.add_argument(
         "--mode",
-        choices=["rest", "ws", "history", "discover"],
+        choices=["rest", "ws", "history", "history-batch", "discover"],
         required=True,
     )
     parser.add_argument("--seconds", type=float, default=0.0)
     parser.add_argument("--snapshot-every", type=float, default=1.0)
     parser.add_argument("--ping-interval", type=float, default=5.0)
     parser.add_argument("--depth", type=int, default=5, help="Orderbook depth to store")
+    parser.add_argument(
+        "--auto-window-minutes",
+        type=int,
+        default=15,
+        help="Auto window size for history when not providing start/end",
+    )
     parser.add_argument("--start-ts", type=float, help="History start timestamp (epoch)")
     parser.add_argument("--end-ts", type=float, help="History end timestamp (epoch)")
+    parser.add_argument(
+        "--history-date",
+        help="History date (YYYY-MM-DD) for batch series download",
+    )
     parser.add_argument(
         "--fidelity-minutes",
         type=int,
@@ -97,20 +116,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def _resolve_side_map(args: argparse.Namespace) -> Dict[str, str]:
-    if args.up_token_id and args.down_token_id:
-        return {args.up_token_id: "up", args.down_token_id: "down"}
-    if args.market_url:
-        slug = slug_from_market_url(args.market_url)
-        resolution = resolve_token_ids(market_slug=slug)
-        if resolution.up_token_id and resolution.down_token_id:
-            return {resolution.up_token_id: "up", resolution.down_token_id: "down"}
-    if args.market_slug or args.condition_id:
-        resolution = resolve_token_ids(
-            market_slug=args.market_slug,
-            condition_id=args.condition_id,
-        )
-        if resolution.up_token_id and resolution.down_token_id:
-            return {resolution.up_token_id: "up", resolution.down_token_id: "down"}
+    resolution, _ = _resolve_market_context(args)
+    if resolution.up_token_id and resolution.down_token_id:
+        return {resolution.up_token_id: "up", resolution.down_token_id: "down"}
     return {}
 
 
@@ -119,19 +127,29 @@ def _resolve_token_ids(args: argparse.Namespace) -> List[str]:
         return _parse_token_ids(args.token_ids)
     if args.up_token_id and args.down_token_id:
         return [args.up_token_id, args.down_token_id]
+    resolution, _ = _resolve_market_context(args)
+    if resolution.all_token_ids:
+        return resolution.all_token_ids
+    raise ValueError("Must provide --token-ids or --up-token-id/--down-token-id")
+
+
+def _resolve_market_context(
+    args: argparse.Namespace,
+) -> Tuple["TokenResolution", str]:
     if args.market_url:
         slug = slug_from_market_url(args.market_url)
         resolution = resolve_token_ids(market_slug=slug)
-        if resolution.all_token_ids:
-            return resolution.all_token_ids
+        return resolution, slug
     if args.market_slug or args.condition_id:
         resolution = resolve_token_ids(
             market_slug=args.market_slug,
             condition_id=args.condition_id,
         )
-        if resolution.all_token_ids:
-            return resolution.all_token_ids
-    raise ValueError("Must provide --token-ids or --up-token-id/--down-token-id")
+        slug = args.market_slug or resolution.raw.get("slug", "unknown-market")
+        return resolution, slug
+    resolution = resolve_latest_series_market(series_slug=args.series_slug)
+    slug = resolution.raw.get("slug", "unknown-market")
+    return resolution, slug
 
 
 def _run_rest(args: argparse.Namespace) -> None:
@@ -140,9 +158,14 @@ def _run_rest(args: argparse.Namespace) -> None:
         raise ValueError("REST mode requires Up/Down token IDs or market discovery info")
     up_token_id = next(token for token, side in side_map.items() if side == "up")
     down_token_id = next(token for token, side in side_map.items() if side == "down")
+    resolution, market_slug = _resolve_market_context(args)
     writer = JSONLWriter(
         build_snapshot_path(
-            args.out, f"{up_token_id}_{down_token_id}", utc_date_string()
+            args.out,
+            f"{up_token_id}_{down_token_id}",
+            utc_date_string(),
+            series_slug=args.series_slug,
+            market_slug=market_slug,
         )
     )
     stop_at = time.time() + args.seconds if args.seconds else None
@@ -157,6 +180,7 @@ def _run_rest(args: argparse.Namespace) -> None:
 def _run_ws(args: argparse.Namespace) -> None:
     token_ids = _resolve_token_ids(args)
     side_map = _resolve_side_map(args)
+    resolution, market_slug = _resolve_market_context(args)
     collector = MarketWSCollector(
         token_ids=token_ids,
         out_dir=args.out,
@@ -164,6 +188,8 @@ def _run_ws(args: argparse.Namespace) -> None:
         depth=args.depth,
         ping_interval=args.ping_interval,
         side_map=side_map,
+        series_slug=args.series_slug,
+        market_slug=market_slug,
     )
 
     def _handle_sigint(signum: int, frame: Optional[object]) -> None:
@@ -205,34 +231,80 @@ def _fetch_price_history(
 
 
 def _run_history(args: argparse.Namespace) -> None:
-    if args.start_ts is None or args.end_ts is None:
-        raise ValueError("--start-ts and --end-ts are required for history mode")
+    resolution, market_slug = _resolve_market_context(args)
+    start_ts = args.start_ts
+    end_ts = args.end_ts
+    if start_ts is None or end_ts is None:
+        auto_start, auto_end = resolve_market_window_seconds(
+            resolution.raw, fallback_minutes=args.auto_window_minutes
+        )
+        start_ts = start_ts or auto_start
+        end_ts = end_ts or auto_end
+    if start_ts is None or end_ts is None:
+        raise ValueError("--start-ts/--end-ts required or auto window unavailable")
     token_ids = _resolve_token_ids(args)
     for token_id in token_ids:
         writer = JSONLWriter(
-            build_history_path(args.out, token_id, utc_date_string())
+            build_history_path(
+                args.out,
+                token_id,
+                utc_date_string(),
+                series_slug=args.series_slug,
+                market_slug=market_slug,
+            )
         )
         payload = _fetch_price_history(
             token_id=token_id,
-            start_ts=args.start_ts,
-            end_ts=args.end_ts,
+            start_ts=start_ts,
+            end_ts=end_ts,
             fidelity_minutes=args.fidelity_minutes,
         )
         writer.write(payload)
 
 
 def _run_discover(args: argparse.Namespace) -> None:
-    if args.market_url:
-        slug = slug_from_market_url(args.market_url)
-        resolution = resolve_token_ids(market_slug=slug)
-    else:
-        resolution = resolve_token_ids(
-            market_slug=args.market_slug,
-            condition_id=args.condition_id,
-        )
+    resolution, market_slug = _resolve_market_context(args)
     print("Resolved token IDs")
     print(f"Up: {resolution.up_token_id}")
     print(f"Down: {resolution.down_token_id}")
+    print(f"Market: {market_slug}")
+
+
+def _run_history_batch(args: argparse.Namespace) -> None:
+    if not args.history_date:
+        raise ValueError("--history-date is required for history-batch mode")
+    markets = list_series_markets(
+        series_slug=args.series_slug, date_iso=args.history_date
+    )
+    if not markets:
+        raise ValueError("No markets found for the provided history date")
+    for market in markets:
+        market_slug = market.get("slug", "unknown-market")
+        tokens = resolve_token_ids(market_slug=market_slug)
+        if not tokens.all_token_ids:
+            continue
+        start_ts, end_ts = resolve_market_window_seconds(
+            market, fallback_minutes=args.auto_window_minutes
+        )
+        if start_ts is None or end_ts is None:
+            continue
+        for token_id in tokens.all_token_ids:
+            writer = JSONLWriter(
+                build_history_path(
+                    args.out,
+                    token_id,
+                    utc_date_string(),
+                    series_slug=args.series_slug,
+                    market_slug=market_slug,
+                )
+            )
+            payload = _fetch_price_history(
+                token_id=token_id,
+                start_ts=start_ts,
+                end_ts=end_ts,
+                fidelity_minutes=args.fidelity_minutes,
+            )
+            writer.write(payload)
 
 
 def main() -> None:
@@ -245,6 +317,8 @@ def main() -> None:
         _run_ws(args)
     elif args.mode == "discover":
         _run_discover(args)
+    elif args.mode == "history-batch":
+        _run_history_batch(args)
     else:
         _run_history(args)
 
