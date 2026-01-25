@@ -113,6 +113,18 @@ python -m polymarket_arbitrage_collector.cli.collect `
   --out data/
 ```
 
+To fetch yesterday's full set (UTC) without calculating the date:
+
+```powershell
+python -m polymarket_arbitrage_collector.cli.collect `
+  --mode history-batch `
+  --series-slug btc-up-or-down-15m `
+  --history-days-ago 1 `
+  --auto-window-minutes 15 `
+  --fidelity-minutes 1 `
+  --out data/
+```
+
 ## Troubleshooting Gamma response shape (PowerShell)
 
 The Gamma `markets` endpoint sometimes returns a list directly (no `value` field).
