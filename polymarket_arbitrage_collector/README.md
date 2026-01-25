@@ -113,6 +113,29 @@ python -m polymarket_arbitrage_collector.cli.collect `
   --out data/
 ```
 
+## Troubleshooting Gamma response shape (PowerShell)
+
+The Gamma `markets` endpoint sometimes returns a list directly (no `value` field).
+Use these commands to inspect the shape:
+
+```powershell
+$resp = Invoke-RestMethod "https://gamma-api.polymarket.com/markets?seriesSlug=btc-up-or-down-15m"
+$resp.GetType().FullName
+```
+
+If it is an array, access the first element directly:
+
+```powershell
+$resp[0] | Select-Object slug,startDate,endDate,startDateIso,endDateIso
+```
+
+If it is a dictionary with `value`/`data`, you can expand those instead:
+
+```powershell
+$resp.value | Select-Object -First 5
+$resp.data | Select-Object -First 5
+```
+
 Output files:
 
 ```

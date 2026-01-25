@@ -2,6 +2,7 @@ from polymarket_arbitrage_collector.collectors.rest_book_snapshot import normali
 from polymarket_arbitrage_collector.cli.collect import _combine_snapshots
 from polymarket_arbitrage_collector.collectors.market_discovery import (
     _extract_token_ids,
+    _market_matches_date,
     slug_from_market_url,
 )
 
@@ -65,3 +66,8 @@ def test_extract_token_ids_from_clob_list() -> None:
 def test_slug_from_market_url() -> None:
     url = "https://polymarket.com/event/btc-updown-15m-1768907700"
     assert slug_from_market_url(url) == "btc-updown-15m-1768907700"
+
+
+def test_market_matches_date_from_start_date() -> None:
+    market = {"startDate": "2026-01-21T11:15:00Z"}
+    assert _market_matches_date(market, "2026-01-21")

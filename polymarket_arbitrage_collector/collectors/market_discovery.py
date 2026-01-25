@@ -105,6 +105,21 @@ def _parse_iso_to_epoch(value: Optional[str]) -> Optional[float]:
         return None
 
 
+def _extract_date_prefix(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    return value[:10]
+
+
+def _market_matches_date(market: Dict[str, Any], date_iso: str) -> bool:
+    for key in ("startDateIso", "endDateIso"):
+        if market.get(key) == date_iso:
+            return True
+    start_date = _extract_date_prefix(market.get("startDate"))
+    end_date = _extract_date_prefix(market.get("endDate"))
+    return start_date == date_iso or end_date == date_iso
+
+
 def slug_from_market_url(url: str) -> str:
     """Extract a market slug from a Polymarket event URL."""
 
@@ -191,6 +206,10 @@ def resolve_latest_series_market(
     markets = _fetch_markets_by_series(series_slug, timeout)
     if not markets:
         return TokenResolution(None, None, [], {})
+    accepting = [m for m in markets if m.get("acceptingOrders")]
+    if accepting:
+        markets = accepting
+
     def _score(market: Dict[str, Any]) -> Tuple[int, float]:
         active = int(bool(market.get("active") or market.get("acceptingOrders")))
         start_ts = _parse_iso_to_epoch(market.get("startDate")) or 0.0
@@ -232,8 +251,4 @@ def list_series_markets(
     markets = _fetch_markets_by_series(series_slug, timeout)
     if not date_iso:
         return markets
-    return [
-        market
-        for market in markets
-        if market.get("startDateIso") == date_iso or market.get("endDateIso") == date_iso
-    ]
+    return [market for market in markets if _market_matches_date(market, date_iso)]
