@@ -111,9 +111,31 @@ def _extract_date_prefix(value: Optional[str]) -> Optional[str]:
     return value[:10]
 
 
+def _parse_iso_to_date(value: Optional[str]) -> Optional[datetime.date]:
+    if not value:
+        return None
+    try:
+        if value.endswith("Z"):
+            value = value.replace("Z", "+00:00")
+        return datetime.fromisoformat(value).date()
+    except ValueError:
+        return None
+
+
 def _market_matches_date(market: Dict[str, Any], date_iso: str) -> bool:
+    try:
+        target_date = datetime.fromisoformat(date_iso).date()
+    except ValueError:
+        target_date = None
     for key in ("startDateIso", "endDateIso"):
         if market.get(key) == date_iso:
+            return True
+    if target_date:
+        for key in ("startDateIso", "endDateIso", "startDate", "endDate"):
+            if _parse_iso_to_date(market.get(key)) == target_date:
+                return True
+        event_start = _parse_iso_to_date(market.get("eventStartTime"))
+        if event_start == target_date:
             return True
     start_date = _extract_date_prefix(market.get("startDate"))
     end_date = _extract_date_prefix(market.get("endDate"))

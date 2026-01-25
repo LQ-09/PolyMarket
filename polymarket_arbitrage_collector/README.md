@@ -102,6 +102,8 @@ python -m polymarket_arbitrage_collector.cli.collect `
 ## History batch (daily 15m markets)
 
 Download all 15-minute markets for a given date (e.g. 96 markets for a full day).
+The date filter matches Gamma `startDateIso`, `endDateIso`, and `eventStartTime` values
+in UTC.
 
 ```powershell
 python -m polymarket_arbitrage_collector.cli.collect `
