@@ -94,6 +94,37 @@ def _extract_markets_list(payload: Any) -> List[Dict[str, Any]]:
     return []
 
 
+def _series_slug_candidates(series_slug: str) -> List[str]:
+    candidates = {series_slug}
+    candidates.add(series_slug.replace("up-or-down", "updown"))
+    candidates.add(series_slug.replace("-or-", "-"))
+    return [candidate for candidate in candidates if candidate]
+
+
+def _filter_markets_by_series_slug(
+    markets: List[Dict[str, Any]],
+    series_slug: str,
+) -> List[Dict[str, Any]]:
+    if not markets:
+        return markets
+    with_field = [market for market in markets if market.get("seriesSlug") == series_slug]
+    if with_field:
+        return with_field
+    slug_candidates = _series_slug_candidates(series_slug)
+    if slug_candidates:
+        slug_filtered = [
+            market
+            for market in markets
+            if any(
+                str(market.get("slug", "")).startswith(candidate)
+                for candidate in slug_candidates
+            )
+        ]
+        if slug_filtered:
+            return slug_filtered
+    return markets
+
+
 def _parse_iso_to_epoch(value: Optional[str]) -> Optional[float]:
     if not value:
         return None
@@ -226,6 +257,7 @@ def resolve_latest_series_market(
     timeout: float = 10.0,
 ) -> TokenResolution:
     markets = _fetch_markets_by_series(series_slug, timeout)
+    markets = _filter_markets_by_series_slug(markets, series_slug)
     if not markets:
         return TokenResolution(None, None, [], {})
     accepting = [m for m in markets if m.get("acceptingOrders")]
@@ -271,6 +303,7 @@ def list_series_markets(
     timeout: float = 10.0,
 ) -> List[Dict[str, Any]]:
     markets = _fetch_markets_by_series(series_slug, timeout)
+    markets = _filter_markets_by_series_slug(markets, series_slug)
     if not date_iso:
         return markets
     return [market for market in markets if _market_matches_date(market, date_iso)]

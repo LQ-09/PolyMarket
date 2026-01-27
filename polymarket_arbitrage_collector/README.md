@@ -103,7 +103,8 @@ python -m polymarket_arbitrage_collector.cli.collect `
 
 Download all 15-minute markets for a given date (e.g. 96 markets for a full day).
 The date filter matches Gamma `startDateIso`, `endDateIso`, and `eventStartTime` values
-in UTC.
+in UTC. When the Gamma series endpoint returns an unfiltered list, the collector
+falls back to filtering by `seriesSlug` or the market slug prefix.
 
 ```powershell
 python -m polymarket_arbitrage_collector.cli.collect `
