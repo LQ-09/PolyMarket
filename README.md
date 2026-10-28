@@ -45,8 +45,8 @@ A local offline smoke checked that one eligible synthetic pair produces the expe
 
 No verified market return, Sharpe ratio, capacity or live execution quality is claimed. The live engine prints proposed actions and sends no orders.
 
-The fee is a simplified per-pair input, not a calibrated exchange fee schedule. Immediate two-leg fills omit legging risk, queue priority, depth, partial fills, latency, cancellation and outages. Expiry is simulated as a fixed interval rather than verified market-resolution events. The trade counter counts detected opportunities even if the execution engine refuses a new position at its capacity limit; it must not be used as an actual fill count.
+The fee is a simplified per-pair input, not a calibrated exchange fee schedule. Immediate two-leg fills omit legging risk, queue priority, depth, partial fills, latency, cancellation and outages. Expiry is simulated as a fixed interval rather than verified market-resolution events. The trade counter counts accepted simulated pairs and excludes capacity rejections; these are modeled fills, not verified market executions.
 
 ## Next research steps
 
-Add depth/size-aware fills and one-leg-failure cases; validate market-resolution and fee rules against the selected markets; distinguish opportunities, accepted pairs and fills in metrics; test collector replay and the duplicated package layouts; compare execution assumptions on dated, permitted data. These are planned checks, not completed improvements.
+Add depth/size-aware fills and one-leg-failure cases; validate market-resolution and fee rules against the selected markets; test collector replay and the duplicated package layouts; compare execution assumptions on dated, permitted data. These are planned checks, not completed improvements.

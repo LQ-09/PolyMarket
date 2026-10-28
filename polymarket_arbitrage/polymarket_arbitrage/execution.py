@@ -14,7 +14,8 @@ class ExecutionEngine(abc.ABC):
     """Abstract execution engine."""
 
     @abc.abstractmethod
-    def execute(self, opportunity: ArbitrageOpportunity) -> None:
+    def execute(self, opportunity: ArbitrageOpportunity) -> bool:
+        """Return whether the opportunity was executed."""
         raise NotImplementedError
 
 
@@ -33,10 +34,10 @@ class SimulationExecutionEngine(ExecutionEngine):
         self.fee_rate = float(fee_rate)
         self.records: List[ExecutionRecord] = []
 
-    def execute(self, opportunity: ArbitrageOpportunity) -> None:
+    def execute(self, opportunity: ArbitrageOpportunity) -> bool:
         cost = opportunity.up_price + opportunity.down_price + self.fee_rate
         if not self.risk_manager.can_open_position():
-            return
+            return False
         self.risk_manager.open_position(cost, opportunity.timestamp)
         self.records.append(
             ExecutionRecord(
@@ -46,14 +47,17 @@ class SimulationExecutionEngine(ExecutionEngine):
             )
         )
 
+        return True
+
 
 class LiveExecutionEngine(ExecutionEngine):
     """Skeleton for live execution (no real orders)."""
 
-    def execute(self, opportunity: ArbitrageOpportunity) -> None:
+    def execute(self, opportunity: ArbitrageOpportunity) -> bool:
         print(
             "[LIVE] Would execute arbitrage: "
             f"up={opportunity.up_price:.4f}, "
             f"down={opportunity.down_price:.4f}, "
             f"edge={opportunity.edge:.4f}"
         )
+        return False

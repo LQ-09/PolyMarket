@@ -16,3 +16,21 @@ class SyntheticAccountingTest(unittest.TestCase):
         result = build_default_backtester([snapshot], 0.01, 0.02, 1, 900).run()
         self.assertEqual(result.total_pnl, 0)
         self.assertEqual(result.trades, 0)
+
+    def test_capacity_rejections_are_not_trades(self):
+        snapshots = [
+            OrderBookSnapshot(ts, [], [(0.44, 10)], [], [(0.50, 10)])
+            for ts in (0, 1)
+        ]
+        result = build_default_backtester(snapshots, 0.01, 0.02, 1, 900).run()
+        self.assertEqual(result.trades, 1)
+        self.assertAlmostEqual(result.total_pnl, 0.04)
+        self.assertAlmostEqual(result.avg_pnl_per_trade, 0.04)
+        self.assertEqual(result.max_open_positions, 1)
+
+    def test_zero_capacity_has_no_trades(self):
+        snapshot = OrderBookSnapshot(0, [], [(0.44, 10)], [], [(0.50, 10)])
+        result = build_default_backtester([snapshot], 0.01, 0.02, 0, 900).run()
+        self.assertEqual(result.trades, 0)
+        self.assertEqual(result.total_pnl, 0)
+        self.assertEqual(result.avg_pnl_per_trade, 0)

@@ -40,8 +40,8 @@ class Backtester:
         for snapshot in self._iter_snapshots(self.data_provider):
             opportunities = self.strategy(snapshot)
             for opportunity in opportunities:
-                self.execution_engine.execute(opportunity)
-                trades += 1
+                if self.execution_engine.execute(opportunity):
+                    trades += 1
             self.risk_manager.settle_positions(snapshot.timestamp)
             self.max_open_positions = max(
                 self.max_open_positions, len(self.risk_manager.positions)
