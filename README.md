@@ -13,17 +13,18 @@ A research project for collecting binary-market order books and testing whether 
 
 The collector and backtester are separate packages. Historical token prices do not reconstruct historical order-book depth.
 
-## Run an offline backtest
+## Run an offline example
 
-Python 3.10+ is recommended for the collector's type syntax. The backtest core uses only the standard library. Supply permitted paired-market snapshots in the documented schema.
+Python 3.10+ is recommended for the collector's type syntax. The backtest core and the following synthetic example use only the standard library.
 
 ```sh
 PYTHONPATH=polymarket_arbitrage python polymarket_arbitrage/scripts/backtest.py \
-  --data /path/to/snapshots.json --fee-rate 0.02 \
+  --data examples/synthetic_snapshots.json --fee-rate 0.02 \
   --profit-threshold 0.01 --max-positions 1 --expiry-seconds 900
+PYTHONPATH=polymarket_arbitrage python -m unittest discover -s tests -v
 ```
 
-For collection setup, see [collector documentation](polymarket_arbitrage_collector/README.md). For input schema, see [backtester documentation](polymarket_arbitrage/README.md).
+The example is invented, contains no market observations, and demonstrates accounting only. For collection setup, see [collector documentation](polymarket_arbitrage_collector/README.md). For input schema, see [backtester documentation](polymarket_arbitrage/README.md).
 
 ## Maintenance record
 
