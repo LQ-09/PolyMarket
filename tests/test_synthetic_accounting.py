@@ -34,3 +34,16 @@ class SyntheticAccountingTest(unittest.TestCase):
         self.assertEqual(result.trades, 0)
         self.assertEqual(result.total_pnl, 0)
         self.assertEqual(result.avg_pnl_per_trade, 0)
+
+    def test_expired_positions_release_capacity_before_new_opportunities(self):
+        for timestamp, expected_trades in ((899, 1), (900, 2), (901, 2)):
+            with self.subTest(timestamp=timestamp):
+                snapshots = [
+                    OrderBookSnapshot(ts, [], [(0.44, 10)], [], [(0.50, 10)])
+                    for ts in (0, timestamp)
+                ]
+                result = build_default_backtester(snapshots, 0.01, 0.02, 1, 900).run()
+                self.assertEqual(result.trades, expected_trades)
+                self.assertAlmostEqual(result.total_pnl, 0.04 * expected_trades)
+                self.assertAlmostEqual(result.avg_pnl_per_trade, 0.04)
+                self.assertEqual(result.max_open_positions, 1)

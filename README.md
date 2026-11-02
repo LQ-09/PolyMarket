@@ -26,6 +26,10 @@ PYTHONPATH=polymarket_arbitrage python -m unittest discover -s tests -v
 
 The example is invented, contains no market observations, and demonstrates accounting only. For collection setup, see [collector documentation](polymarket_arbitrage_collector/README.md). For input schema, see [backtester documentation](polymarket_arbitrage/README.md).
 
+At each snapshot, the backtester settles pairs whose simulated expiry has been
+reached before checking capacity for new entries. Offline regressions cover
+snapshots just before, exactly at, and after expiry with a one-position limit.
+
 ## Maintenance record
 
 | Date | Change in the repository | Evidence |

@@ -38,11 +38,12 @@ class Backtester:
     def run(self) -> BacktestResult:
         trades = 0
         for snapshot in self._iter_snapshots(self.data_provider):
+            # Expired pairs must release capacity before evaluating new entries.
+            self.risk_manager.settle_positions(snapshot.timestamp)
             opportunities = self.strategy(snapshot)
             for opportunity in opportunities:
                 if self.execution_engine.execute(opportunity):
                     trades += 1
-            self.risk_manager.settle_positions(snapshot.timestamp)
             self.max_open_positions = max(
                 self.max_open_positions, len(self.risk_manager.positions)
             )
