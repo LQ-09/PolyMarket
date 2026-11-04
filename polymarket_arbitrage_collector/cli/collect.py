@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import signal
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 from loguru import logger
@@ -105,6 +106,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--history-date",
         help="History date (YYYY-MM-DD) for batch series download",
+    )
+    parser.add_argument(
+        "--history-days-ago",
+        type=int,
+        help="History days ago (UTC) for batch series download",
     )
     parser.add_argument(
         "--fidelity-minutes",
@@ -271,10 +277,16 @@ def _run_discover(args: argparse.Namespace) -> None:
 
 
 def _run_history_batch(args: argparse.Namespace) -> None:
-    if not args.history_date:
-        raise ValueError("--history-date is required for history-batch mode")
+    history_date = args.history_date
+    if not history_date and args.history_days_ago is not None:
+        target_date = datetime.now(timezone.utc) - timedelta(days=args.history_days_ago)
+        history_date = target_date.strftime("%Y-%m-%d")
+    if not history_date:
+        raise ValueError(
+            "--history-date or --history-days-ago is required for history-batch mode"
+        )
     markets = list_series_markets(
-        series_slug=args.series_slug, date_iso=args.history_date
+        series_slug=args.series_slug, date_iso=history_date
     )
     if not markets:
         raise ValueError("No markets found for the provided history date")
